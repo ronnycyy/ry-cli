@@ -1,0 +1,138 @@
+#!/usr/bin/env node
+
+// logo
+const figlet = require('figlet');
+const Printer = require('@darkobits/lolcatjs');
+const txt = figlet.textSync('RONNY') + "\n" + "  DIY脚手架";
+const logo = Printer.default.fromString(txt);
+
+// 提供可视化选择
+const inquirer = require('inquirer');
+
+// 特殊字体颜色
+const chalk = require('chalk');
+
+// 将JSON转化为interface
+const json2ts = require("json2ts");
+
+// 展示loading效果
+const ora = require('ora');
+
+// 提供高兼容性的shell命令
+const shell = require('shelljs');
+
+// 下载git项目
+const download = require('download-git-repo');
+
+// git项目地址
+const templateUrl = "direct:https://github.com/qiuJinLong/yd-vue-kernel.git";
+
+// 接收用户输入
+const program = require('commander');
+program.version(logo, '-v, --version');  // logo + version
+program.option('init', '🚀 init project');
+program.option('json2ts', '🏆 json to typescript interface');
+
+// 处理用户输入
+const bindHandler = {
+  init() {
+    inquirer
+      // 交互提示
+      .prompt([
+        {  // 输入项目名称
+          type: 'text',
+          message: '📁 input project name:',
+          name: 'projectName'
+        },
+        {  // 选择项目语言
+          type: 'list',
+          name: 'jsKind',
+          message: '🚗 select language:',
+          choices: ['ES6', 'TypeScript']
+        },
+      ])
+      .then((answers) => {
+        // 1. git 准备好一个能容纳百川的项目
+        // 2. git 下载那个包
+        // 3. shelljs根据用户选择对你下载的包进行修改删除
+        // 4. 在用户桌面创建最终的项目
+        // 5. 引导开发使用
+        const _dirname = answers.projectName;
+
+        if (_dirname) {
+          // 展示loading效果
+          const spinner = ora('⏰ downloading template...');
+          spinner.start();
+          // 项目父级目录
+          const _pwd = shell.pwd().stdout;
+          // 项目绝对路径
+          const _projectPath = `${_pwd}/${_dirname}`;
+          // 进入父级目录
+          shell.cd(_pwd);
+          // 删除旧项目（如果有）
+          shell.rm('-rf', _projectPath);
+          // 创建新项目
+          shell.mkdir(_dirname);
+          // 下载依赖cli
+          download(templateUrl, _projectPath, { clone: true }, err => {
+            spinner.stop();
+            if (err) {
+              console.log(`download error: ${err.message}`);
+            } else {
+              // 替换项目名称
+              shell.sed('-i', 'yd-vue-kernel', _dirname, _projectPath + '/package.json');
+            }
+          });
+          /**
+           * .catch(err => {
+            console.log(chalk.red(`cli init error: ${err}`));
+          })
+           */
+        }
+
+      })
+      .catch((error) => {
+        if (error.isTtyError) {
+          // Prompt couldn't be rendered in the current environment
+        } else {
+          // Something else went wrong
+        }
+      });
+  },
+  json2ts(url) {
+    if (url) {
+      console.log(`fetch ${url}...`);
+    }
+
+    const spinner = ora('⏰ generating code, please wait...')
+    spinner.start();
+
+    const jsonContent = {
+      code: 200,
+      info: {
+        message: 'ok',
+        data: [
+          { num: 1, title: '3号仓库' }
+        ]
+      }
+    };
+    const result = json2ts.convert(JSON.stringify(jsonContent));
+    console.log(result);
+    // spinner.stop();
+  }
+}
+
+program.usage('<cmd> [env]')
+  .arguments('<cmd> [env]')
+  .action(function (cmd, otherParams) {
+    const handler = bindHandler[cmd];
+    if (handler) {
+      handler(otherParams);
+    } else {
+      console.log(chalk.yellow('🙏Sorry. No such command: ' + chalk.red(cmd)));
+    }
+  });
+
+// parse user input
+program.parse(process.argv);
+
